@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const kv = Redis.fromEnv();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Setup CORS to allow the Chrome Extension to call this endpoint

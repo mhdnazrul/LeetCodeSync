@@ -26,7 +26,10 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
   const handleClicked = () => {
     setLoading(true);
     setError(null);
-    const authUrl = `${OAUTH_SERVER_URL}/api/auth/github/start`;
+    const redirectUrl = chrome.identity.getRedirectURL();
+    const authUrl = `${OAUTH_SERVER_URL}/api/auth/github/start?extension_redirect_url=${encodeURIComponent(
+      redirectUrl,
+    )}`;
 
     chrome.identity.launchWebAuthFlow(
       { url: authUrl, interactive: true },

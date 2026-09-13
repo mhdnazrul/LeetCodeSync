@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+
+const kv = Redis.fromEnv();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -27,21 +29,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Verify and consume the state
   const stateKey = `state:${state}`;
-  const validState = await kv.get(stateKey);
+  const stateData = await kv.get<{ extensionRedirectUrl: string }>(stateKey);
   
-  if (!validState) {
+  if (!stateData || !stateData.extensionRedirectUrl) {
     return res.status(403).json({ error: 'Invalid or expired state parameter' });
   }
   
   // Single-use: delete state immediately
   await kv.del(stateKey);
 
+  const extensionRedirectUrl = stateData.extensionRedirectUrl;
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   const redirectUri = process.env.GITHUB_CALLBACK_URL;
-  const extensionId = process.env.EXTENSION_ID;
 
-  if (!clientId || !clientSecret || !redirectUri || !extensionId) {
+  if (!clientId || !clientSecret || !redirectUri) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
@@ -78,8 +80,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Redirect the browser back to the Chrome Extension
     // chrome.identity.launchWebAuthFlow handles this redirect automatically
-    const extensionRedirectUrl = `https://${extensionId}.chromiumapp.org/?ticket=${ticket}`;
-    return res.redirect(302, extensionRedirectUrl);
+    const finalUrl = new URL(extensionRedirectUrl);
+    finalUrl.searchParams.set('ticket', ticket);
+    return res.redirect(302, finalUrl.toString());
 
   } catch (error) {
     console.error('OAuth Callback Error:', error);
