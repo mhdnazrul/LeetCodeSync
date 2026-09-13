@@ -2,6 +2,8 @@ import GithubHandler from '../handlers/GithubHandler';
 
 jest.mock('../constants', () => ({
   GITHUB_CLIENT_ID: '',
+  GITHUB_CLIENT_SECRET: '',
+  GITHUB_REDIRECT_URI: '',
 }));
 
 describe('GithubHandler utility methods', () => {
@@ -24,14 +26,14 @@ describe('GithubHandler utility methods', () => {
 
   it('returns correct difficulty color', () => {
     const handler = new GithubHandler();
-    expect(handler.getDifficultyColor('Easy' as any)).toBe('brightgreen');
-    expect(handler.getDifficultyColor('Medium' as any)).toBe('orange');
-    expect(handler.getDifficultyColor('Hard' as any)).toBe('red');
+    expect(handler.getDifficultyColor('Easy')).toBe('brightgreen');
+    expect(handler.getDifficultyColor('Medium')).toBe('orange');
+    expect(handler.getDifficultyColor('Hard')).toBe('red');
   });
 
   it('creates a difficulty badge using the difficulty color', () => {
     const handler = new GithubHandler();
-    const badge = handler.createDifficultyBadge('Medium' as any);
+    const badge = handler.createDifficultyBadge('Medium');
     expect(badge).toContain('img');
     expect(badge).toContain('Difficulty-Medium-orange');
   });

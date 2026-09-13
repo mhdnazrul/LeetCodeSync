@@ -14,71 +14,22 @@ import { BsGithub } from 'react-icons/bs';
 import { SiLeetcode } from 'react-icons/si';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
-import { GITHUB_CLIENT_ID } from '../constants';
-import { generateCodeVerifier, generateCodeChallenge, generateState } from '../utils/pkce';
+import { GITHUB_REDIRECT_URI, GITHUB_CLIENT_ID } from '../constants';
 import { GithubHandler } from '../handlers';
 import { Footer } from './Footer';
 
 const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const handleClicked = () => {
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${GITHUB_REDIRECT_URI}&scope=repo`;
 
-  const handleClicked = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const redirectUri = chrome.identity.getRedirectURL();
-      const state = generateState();
-      const codeVerifier = generateCodeVerifier();
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-      const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
-      chrome.identity.launchWebAuthFlow(
-        {
-          url: authUrl,
-          interactive: true,
-        },
-        async (redirectUrl) => {
-          if (chrome.runtime.lastError || !redirectUrl) {
-            setLoading(false);
-            setErrorMsg(chrome.runtime.lastError?.message || 'Authentication cancelled.');
-            return;
-          }
-
-          const url = new URL(redirectUrl);
-          const code = url.searchParams.get('code');
-          const returnedState = url.searchParams.get('state');
-
-          if (returnedState !== state) {
-            setLoading(false);
-            setErrorMsg('Invalid state parameter.');
-            return;
-          }
-
-          if (code) {
-            try {
-              const github = new GithubHandler();
-              await github.authorize(code, codeVerifier, redirectUri);
-              
-              chrome.storage.sync.get(['github_leetsync_token'], (result) => {
-                if (result.github_leetsync_token) {
-                  setAccessToken(result.github_leetsync_token);
-                }
-              });
-            } catch (e: any) {
-              setErrorMsg(e.message || 'Failed to exchange token.');
-            }
-          }
-          setLoading(false);
-        }
-      );
-    } catch (e: any) {
-      setErrorMsg(e.message || 'Failed to initiate authentication.');
-      setLoading(false);
-    }
+    chrome.tabs.create({ url: authUrl, active: true }, function (x) {
+      chrome.tabs.getCurrent(function (tab) {
+        if (!tab?.id) return;
+        chrome.tabs.remove(tab?.id, function () {});
+      });
+    });
   };
   useEffect(() => {
     if (accessToken && accessToken.length > 0) {
@@ -103,11 +54,6 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
           account. <br />
         </Text>
       </VStack>
-      {errorMsg && (
-        <Text color="red.500" fontSize="sm" w="95%" textAlign="center">
-          {errorMsg}
-        </Text>
-      )}
       <Button
         colorScheme={'blackAlpha'}
         bg="blackAlpha.800"
@@ -118,7 +64,6 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
         borderColor={'gray.200'}
         _hover={{ bg: 'blackAlpha.700' }}
         onClick={handleClicked}
-        isLoading={loading}
       >
         Login with GitHub
       </Button>
@@ -256,7 +201,7 @@ const StartOnboarding = ({ nextStep }: { nextStep: Function }) => {
       <VStack w="100%">
         <Heading size="lg">Welcome 👋</Heading>
         <Text color="GrayText" fontSize={'sm'} w="90%" textAlign={'center'}>
-          LeetCodeSync is a Chrome extension that syncs your submissions to GitHub. Setup now.
+          LeetSync is a Chrome extension that syncs your submissions to GitHub. Setup now.
         </Text>
       </VStack>
 

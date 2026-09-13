@@ -1,4 +1,4 @@
-import { GITHUB_CLIENT_ID } from '../constants';
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI } from '../constants';
 import { QuestionDifficulty } from '../types/Question';
 import { Submission } from '../types/Submission';
 
@@ -51,7 +51,9 @@ interface GithubUser {
 }
 export default class GithubHandler {
   base_url: string = 'https://api.github.com';
+  private client_secret: string | null = GITHUB_CLIENT_SECRET ?? '';
   private client_id: string | null = GITHUB_CLIENT_ID ?? '';
+  private redirect_uri: string | null = GITHUB_REDIRECT_URI ?? '';
   private accessToken: string;
   private username: string;
   private repo: string;
@@ -101,8 +103,8 @@ export default class GithubHandler {
       });
     });
   }
-  async authorize(code: string, codeVerifier: string, redirectUri: string): Promise<string | null> {
-    const access_token = await this.fetchAccessToken(code, codeVerifier, redirectUri);
+  async authorize(code: string): Promise<string | null> {
+    const access_token = await this.fetchAccessToken(code);
     const user = await this.fetchGithubUser(access_token);
     if (!access_token || !user) return null;
     this.accessToken = access_token;
@@ -133,14 +135,17 @@ export default class GithubHandler {
     });
     return response;
   }
-  async fetchAccessToken(code: string, codeVerifier: string, redirectUri: string) {
+  async fetchAccessToken(code: string) {
+    const token = await this.loadTokenFromStorage();
+
+    if (token) return token;
+
     const tokenUrl = 'https://github.com/login/oauth/access_token';
     const body = {
-      client_id: this.client_id,
       code,
-      redirect_uri: redirectUri,
-      code_verifier: codeVerifier,
-      grant_type: 'authorization_code',
+      client_id: this.client_id,
+      redirect_uri: this.redirect_uri,
+      client_secret: this.client_secret,
     };
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -151,10 +156,10 @@ export default class GithubHandler {
       body: JSON.stringify(body),
     }).then((response) => response.json());
 
-    if (!response || response.message === 'Bad credentials' || response.error) {
-      console.log('No access token found.', response);
+    if (!response || response.message === 'Bad credentials') {
+      console.log('No access token found.');
       chrome.storage.sync.clear();
-      throw new Error(response.error_description || 'Failed to exchange token');
+      return;
     }
 
     chrome.storage.sync.set({ github_leetsync_token: response.access_token }, () => {
@@ -285,7 +290,7 @@ export default class GithubHandler {
     //if it doesn't, create a new file with the content
     const msg = `Time: ${stats.runtimeDisplay} (${stats.runtimePercentile.toFixed(2)}%) | Memory: ${
       stats.memoryDisplay
-    } (${stats.memoryPercentile.toFixed(2)}%) - LeetCodeSync`;
+    } (${stats.memoryPercentile.toFixed(2)}%) - LeetSync`;
     await this.upload(path, `${problemName}${lang}`, code, msg);
   }
 
