@@ -44,10 +44,8 @@ To securely connect your GitHub account, LeetCodeSync utilizes GitHub OAuth. Bec
    ```
 2. Open `.env` and fill in the required fields:
    - `REACT_APP_GITHUB_CLIENT_ID`: The Client ID of your GitHub OAuth App.
-   - `REACT_APP_GITHUB_REDIRECT_URI`: Should be set to `https://github.com/?referrer=leetsync` or your configured callback.
-   - `REACT_APP_OAUTH_PROXY_URL`: The URL of your securely hosted backend proxy that accepts the authorization code and exchanges it for an access token using your private Client Secret.
 
-> **Important:** Never commit your `.env` file or hardcode your `client_secret` anywhere in this repository.
+> **Important:** With the modern PKCE flow, no backend proxy is required, and no client_secret is needed.
 
 ## Usage
 

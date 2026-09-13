@@ -1,4 +1,4 @@
-import { GITHUB_CLIENT_ID, GITHUB_REDIRECT_URI, OAUTH_PROXY_URL } from '../constants';
+import { GITHUB_CLIENT_ID } from '../constants';
 import { QuestionDifficulty } from '../types/Question';
 import { Submission } from '../types/Submission';
 
@@ -52,8 +52,6 @@ interface GithubUser {
 export default class GithubHandler {
   base_url: string = 'https://api.github.com';
   private client_id: string | null = GITHUB_CLIENT_ID ?? '';
-  private redirect_uri: string | null = GITHUB_REDIRECT_URI ?? '';
-  private oauth_proxy_url: string | null = OAUTH_PROXY_URL ?? '';
   private accessToken: string;
   private username: string;
   private repo: string;
@@ -103,8 +101,8 @@ export default class GithubHandler {
       });
     });
   }
-  async authorize(code: string): Promise<string | null> {
-    const access_token = await this.fetchAccessToken(code);
+  async authorize(code: string, codeVerifier: string, redirectUri: string): Promise<string | null> {
+    const access_token = await this.fetchAccessToken(code, codeVerifier, redirectUri);
     const user = await this.fetchGithubUser(access_token);
     if (!access_token || !user) return null;
     this.accessToken = access_token;
@@ -135,20 +133,14 @@ export default class GithubHandler {
     });
     return response;
   }
-  async fetchAccessToken(code: string) {
-    const token = await this.loadTokenFromStorage();
-
-    if (token) return token;
-
-    if (!this.oauth_proxy_url) {
-      throw new Error("OAUTH_PROXY_URL is not configured. A backend proxy is required to safely exchange the authorization code for an access token without exposing the client_secret in the browser.");
-    }
-
-    const tokenUrl = this.oauth_proxy_url;
+  async fetchAccessToken(code: string, codeVerifier: string, redirectUri: string) {
+    const tokenUrl = 'https://github.com/login/oauth/access_token';
     const body = {
-      code,
       client_id: this.client_id,
-      redirect_uri: this.redirect_uri,
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+      grant_type: 'authorization_code',
     };
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -159,10 +151,10 @@ export default class GithubHandler {
       body: JSON.stringify(body),
     }).then((response) => response.json());
 
-    if (!response || response.message === 'Bad credentials') {
-      console.log('No access token found.');
+    if (!response || response.message === 'Bad credentials' || response.error) {
+      console.log('No access token found.', response);
       chrome.storage.sync.clear();
-      return;
+      throw new Error(response.error_description || 'Failed to exchange token');
     }
 
     chrome.storage.sync.set({ github_leetsync_token: response.access_token }, () => {
