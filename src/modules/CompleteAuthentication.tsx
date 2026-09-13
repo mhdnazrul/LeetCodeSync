@@ -27,15 +27,18 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
     setLoading(true);
     setError(null);
     const redirectUrl = chrome.identity.getRedirectURL();
+    console.log('Chrome Redirect URL:', redirectUrl);
+
     const authUrl = `${OAUTH_SERVER_URL}/api/auth/github/start?extension_redirect_url=${encodeURIComponent(
       redirectUrl,
     )}`;
+    console.log('Generated OAuth Start URL:', authUrl);
 
     chrome.identity.launchWebAuthFlow(
       { url: authUrl, interactive: true },
       async (redirectUrl) => {
         if (chrome.runtime.lastError || !redirectUrl) {
-          console.error(chrome.runtime.lastError);
+          console.error('Chrome Identity Error:', chrome.runtime.lastError?.message || chrome.runtime.lastError);
           setError('Authorization failed or was cancelled.');
           setLoading(false);
           return;
@@ -44,13 +47,24 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
         try {
           const url = new URL(redirectUrl);
           const ticket = url.searchParams.get('ticket');
+          const oauthError = url.searchParams.get('error');
+          const oauthErrorDesc = url.searchParams.get('error_description');
+
+          if (oauthError) {
+            console.error('OAuth Callback Error:', oauthError, oauthErrorDesc);
+            setError(oauthErrorDesc || oauthError);
+            setLoading(false);
+            return;
+          }
           
           if (!ticket) {
+            console.error('Missing ticket in redirect URL:', redirectUrl.split('?')[0]);
             setError('No ticket returned from authorization server.');
             setLoading(false);
             return;
           }
 
+          console.log('Exchanging ticket...');
           // Exchange the one-time ticket for the GitHub access token
           const response = await fetch(`${OAUTH_SERVER_URL}/api/auth/github/exchange`, {
             method: 'POST',
@@ -60,14 +74,17 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
             body: JSON.stringify({ ticket }),
           });
 
+          console.log('Exchange HTTP Status:', response.status);
           const data = await response.json();
 
           if (!response.ok || !data.access_token) {
+            console.error('Exchange Failed. Status:', response.status, 'Response:', JSON.stringify(data));
             setError(data.error || 'Failed to exchange token');
             setLoading(false);
             return;
           }
 
+          console.log('Exchange Successful! Fetching GitHub profile...');
           // We got the token, now use GithubHandler to load the profile and store it
           const github = new GithubHandler();
           const token = await github.authorizeWithToken(data.access_token);
@@ -76,10 +93,11 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
             // Save to state to trigger useEffect
             setAccessToken(token);
           } else {
+            console.error('Failed to fetch GitHub profile with token');
             setError('Failed to fetch GitHub profile');
           }
         } catch (err) {
-          console.error(err);
+          console.error('Unexpected Error during auth flow:', err instanceof Error ? err.message : JSON.stringify(err));
           setError('An unexpected error occurred.');
         } finally {
           setLoading(false);
