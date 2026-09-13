@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "Stateless Vercel-backed OAuth Server for LeetCodeSync",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "tsc"
+    "dev": "vercel dev"
   },
   "dependencies": {
     "@vercel/kv": "^3.0.0",

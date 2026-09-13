@@ -1,4 +1,4 @@
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI } from '../constants';
+import { GITHUB_CLIENT_ID, GITHUB_REDIRECT_URI } from '../constants';
 import { QuestionDifficulty } from '../types/Question';
 import { Submission } from '../types/Submission';
 
@@ -51,7 +51,6 @@ interface GithubUser {
 }
 export default class GithubHandler {
   base_url: string = 'https://api.github.com';
-  private client_secret: string | null = GITHUB_CLIENT_SECRET ?? '';
   private client_id: string | null = GITHUB_CLIENT_ID ?? '';
   private redirect_uri: string | null = GITHUB_REDIRECT_URI ?? '';
   private accessToken: string;
@@ -81,7 +80,7 @@ export default class GithubHandler {
           !result.github_username ||
           !result.github_leetsync_repo
         ) {
-          console.log('❌ GithubHandler: Missing Github Credentials');
+          // Intentionally silent: these are empty before the user completes OAuth login
         }
         this.accessToken = result['github_leetsync_token'];
         this.username = result['github_username'];
@@ -103,10 +102,10 @@ export default class GithubHandler {
       });
     });
   }
-  async authorize(code: string): Promise<string | null> {
-    const access_token = await this.fetchAccessToken(code);
+  // Called after the frontend completes the OAuth token exchange with the Vercel backend
+  async authorizeWithToken(access_token: string): Promise<string | null> {
     const user = await this.fetchGithubUser(access_token);
-    if (!access_token || !user) return null;
+    if (!user) return null;
     this.accessToken = access_token;
     this.username = user.login;
     return access_token;
@@ -135,38 +134,7 @@ export default class GithubHandler {
     });
     return response;
   }
-  async fetchAccessToken(code: string) {
-    const token = await this.loadTokenFromStorage();
 
-    if (token) return token;
-
-    const tokenUrl = 'https://github.com/login/oauth/access_token';
-    const body = {
-      code,
-      client_id: this.client_id,
-      redirect_uri: this.redirect_uri,
-      client_secret: this.client_secret,
-    };
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(body),
-    }).then((response) => response.json());
-
-    if (!response || response.message === 'Bad credentials') {
-      console.log('No access token found.');
-      chrome.storage.sync.clear();
-      return;
-    }
-
-    chrome.storage.sync.set({ github_leetsync_token: response.access_token }, () => {
-      console.log('Saved github access token.');
-    });
-    return response.access_token;
-  }
   async checkIfRepoExists(repo_name: string): Promise<boolean> {
     const trimmedRepoName = repo_name.replace('.git', '').trim();
     if (!trimmedRepoName) return false;

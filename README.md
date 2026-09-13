@@ -34,18 +34,38 @@ LeetCodeSync is a Chrome extension that enables you to automatically synchronize
 
 ## GitHub Authentication Setup
 
-To securely connect your GitHub account, LeetCodeSync utilizes GitHub OAuth. Because a Chrome extension runs directly in the browser, storing a client secret in the extension bundle is a security risk. Therefore, this extension requires a backend proxy to handle the OAuth token exchange securely.
+LeetCodeSync uses a secure, stateless Vercel-backed OAuth flow to authenticate users.
 
-### Environment Configuration
+### For End Users
+**You do not need to configure anything!**
+Simply install the extension, click "Login with GitHub", authorize the app, and you're done. You do not need to create your own GitHub OAuth App or generate any tokens.
 
-1. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-2. Open `.env` and fill in the required fields:
-   - `REACT_APP_GITHUB_CLIENT_ID`: The Client ID of your GitHub OAuth App.
+### For Developers (Self-Hosting / Modifying)
+If you are developing or deploying your own version of LeetCodeSync, you must set up the OAuth backend yourself to keep the `GITHUB_CLIENT_SECRET` out of the Chrome extension bundle.
 
-> **Important:** With the modern PKCE flow, no backend proxy is required, and no client_secret is needed.
+#### 1. Extension Configuration
+Copy the configuration template:
+```bash
+cp src/config.example.js src/config.production.js
+```
+Edit `src/config.production.js` with your GitHub Client ID and your deployed Vercel Backend URL (e.g., `https://your-vercel-domain.vercel.app`). Do **not** put your client secret here.
+
+#### 2. Deploying the Vercel Backend
+The Vercel backend (`/oauth-server`) securely exchanges the OAuth code for an access token using a single-use ticket stored in Vercel KV.
+
+1. Navigate to the `oauth-server` directory.
+2. Run `vercel` to deploy the backend.
+3. In your Vercel project dashboard, go to **Storage** and create/link a **Vercel KV (Redis)** database.
+4. In your Vercel project settings, add the following Environment Variables:
+   - `GITHUB_CLIENT_ID`: Your GitHub App Client ID
+   - `GITHUB_CLIENT_SECRET`: Your GitHub App Client Secret
+   - `GITHUB_CALLBACK_URL`: `https://your-vercel-domain.vercel.app/api/auth/github/callback`
+   - `EXTENSION_ID`: Your Chrome Extension ID (e.g., `abcdefghijklmnopqrstuvwxyz123456`)
+
+#### 3. GitHub OAuth App Setup
+In your GitHub Developer Settings, configure your OAuth App:
+- **Homepage URL**: Your repository or project website URL
+- **Authorization callback URL**: The URL to your Vercel backend callback endpoint (e.g., `https://your-vercel-domain.vercel.app/api/auth/github/callback`). Do NOT use `https://github.com/?referrer=leetsync`.
 
 ## Usage
 

@@ -14,28 +14,82 @@ import { BsGithub } from 'react-icons/bs';
 import { SiLeetcode } from 'react-icons/si';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
-import { GITHUB_REDIRECT_URI, GITHUB_CLIENT_ID } from '../constants';
+import { OAUTH_SERVER_URL } from '../constants';
 import { GithubHandler } from '../handlers';
 import { Footer } from './Footer';
 
 const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleClicked = () => {
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${GITHUB_REDIRECT_URI}&scope=repo`;
+    setLoading(true);
+    setError(null);
+    const authUrl = `${OAUTH_SERVER_URL}/api/auth/github/start`;
 
-    chrome.tabs.create({ url: authUrl, active: true }, function (x) {
-      chrome.tabs.getCurrent(function (tab) {
-        if (!tab?.id) return;
-        chrome.tabs.remove(tab?.id, function () {});
-      });
-    });
+    chrome.identity.launchWebAuthFlow(
+      { url: authUrl, interactive: true },
+      async (redirectUrl) => {
+        if (chrome.runtime.lastError || !redirectUrl) {
+          console.error(chrome.runtime.lastError);
+          setError('Authorization failed or was cancelled.');
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const url = new URL(redirectUrl);
+          const ticket = url.searchParams.get('ticket');
+          
+          if (!ticket) {
+            setError('No ticket returned from authorization server.');
+            setLoading(false);
+            return;
+          }
+
+          // Exchange the one-time ticket for the GitHub access token
+          const response = await fetch(`${OAUTH_SERVER_URL}/api/auth/github/exchange`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ticket }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.access_token) {
+            setError(data.error || 'Failed to exchange token');
+            setLoading(false);
+            return;
+          }
+
+          // We got the token, now use GithubHandler to load the profile and store it
+          const github = new GithubHandler();
+          const token = await github.authorizeWithToken(data.access_token);
+          
+          if (token) {
+            // Save to state to trigger useEffect
+            setAccessToken(token);
+          } else {
+            setError('Failed to fetch GitHub profile');
+          }
+        } catch (err) {
+          console.error(err);
+          setError('An unexpected error occurred.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
   };
+
   useEffect(() => {
     if (accessToken && accessToken.length > 0) {
       nextStep();
     }
-  }, [accessToken]);
+  }, [accessToken, nextStep]);
 
   useEffect(() => {
     chrome.storage.sync.get(['github_leetsync_token'], (result) => {
@@ -64,9 +118,15 @@ const AuthorizeWithGithub = ({ nextStep }: { nextStep: Function }) => {
         borderColor={'gray.200'}
         _hover={{ bg: 'blackAlpha.700' }}
         onClick={handleClicked}
+        isLoading={loading}
       >
         Login with GitHub
       </Button>
+      {error && (
+        <Text color="red.500" fontSize="sm" textAlign="center" w="95%">
+          {error}
+        </Text>
+      )}
       <small>You can revoke access at any time.</small>
     </VStack>
   );
