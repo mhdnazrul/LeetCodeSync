@@ -2,7 +2,7 @@ import GithubHandler from '../handlers/GithubHandler';
 
 jest.mock('../constants', () => ({
   GITHUB_CLIENT_ID: '',
-  GITHUB_CLIENT_SECRET: '',
+  OAUTH_PROXY_URL: '',
   GITHUB_REDIRECT_URI: '',
 }));
 

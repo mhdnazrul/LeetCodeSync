@@ -1,5 +1,3 @@
-import * as config from './config.production';
-
-export const GITHUB_CLIENT_ID = config.GITHUB_CLIENT_ID;
-export const GITHUB_CLIENT_SECRET = config.GITHUB_CLIENT_SECRET;
-export const GITHUB_REDIRECT_URI = config.GITHUB_REDIRECT_URI;
+export const GITHUB_CLIENT_ID = process.env.REACT_APP_GITHUB_CLIENT_ID || '';
+export const GITHUB_REDIRECT_URI = process.env.REACT_APP_GITHUB_REDIRECT_URI || 'https://github.com/?referrer=leetsync';
+export const OAUTH_PROXY_URL = process.env.REACT_APP_OAUTH_PROXY_URL || '';

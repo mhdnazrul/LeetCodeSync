@@ -1,54 +1,91 @@
-# LeetSync Chrome Extension
+# LeetCodeSync
 
-LeetSync is a Chrome extension that enables you to sync your LeetCode problem submissions with a selected GitHub repository. With this extension, you can easily track your coding progress and share your solutions with others on GitHub.
+LeetCodeSync is a Chrome extension that enables you to automatically synchronize your LeetCode problem submissions with a selected GitHub repository. This tool helps you easily track your coding progress and build a portfolio of your algorithmic solutions on GitHub without any manual copy-pasting.
 
-## Table of Contents
+> **Note:** This project is a rebranded and modified derivative of the original [LeetSync](https://github.com/LeetSync/LeetSync) project. It preserves the core synchronization logic while introducing enhanced security configurations for GitHub authentication.
 
-- [How it Works](#how-it-works)
-- [Installation](#installation)
-- [Get Started](#get-started)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+## Features
 
-## How it Works
-
-LeetSync utilizes the LeetCode API to fetch your submission data and the GitHub API to create a new file or update an existing one in your selected repository.
+- **Automated Sync**: Automatically pushes your accepted LeetCode solutions to a GitHub repository of your choice.
+- **Language Support**: Works seamlessly with multiple programming languages available on LeetCode.
+- **Submission Details**: Commit messages and file contents include problem stats (runtime, memory usage).
 
 ## Installation
 
-To install LeetSync, follow these steps:
+### From Source (Developer Mode)
 
-1. Download the latest release of the extension from the [Chrome Web Store](https://chrome.google.com/webstore/detail/leetsync-leetcode-synchro/ppkbejeolfcbaomanmbpjdbkfcjfhjnd?hl=en&authuser=0).
-2. Install the extension by clicking the "Add to Chrome" button.
-3. Once the installation is complete, click on the extension icon in your Chrome toolbar to configure it.
+1. Clone this repository to your local machine:
+   ```bash
+   git clone https://github.com/mhdnazrul/LeetCodeSync.git
+   cd LeetCodeSync
+   ```
+2. Set up your environment variables (see [GitHub Authentication Setup](#github-authentication-setup)).
+3. Install the required dependencies:
+   ```bash
+   npm install
+   ```
+4. Build the extension:
+   ```bash
+   npm run build
+   ```
+5. Open Chrome and navigate to `chrome://extensions/`.
+6. Enable **Developer mode** in the top right corner.
+7. Click on **Load unpacked** and select the `build` folder generated inside the project directory.
 
-## Get Started
+## GitHub Authentication Setup
 
-To configure LeetSync, follow these steps:
+To securely connect your GitHub account, LeetCodeSync utilizes GitHub OAuth. Because a Chrome extension runs directly in the browser, storing a client secret in the extension bundle is a security risk. Therefore, this extension requires a backend proxy to handle the OAuth token exchange securely.
 
-1. Click on the extension icon in your Chrome toolbar.
-2. In the popup window, Give Access via Github.
-3. Login Via LeetCode (Optional and might be automatically skipped if already logged in)
-4. Select the repository you want to sync your submissions to.
-5. Start solving some problems
+### Environment Configuration
+
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Open `.env` and fill in the required fields:
+   - `REACT_APP_GITHUB_CLIENT_ID`: The Client ID of your GitHub OAuth App.
+   - `REACT_APP_GITHUB_REDIRECT_URI`: Should be set to `https://github.com/?referrer=leetsync` or your configured callback.
+   - `REACT_APP_OAUTH_PROXY_URL`: The URL of your securely hosted backend proxy that accepts the authorization code and exchanges it for an access token using your private Client Secret.
+
+> **Important:** Never commit your `.env` file or hardcode your `client_secret` anywhere in this repository.
 
 ## Usage
 
-To use LeetSync, follow these steps:
+1. Open the LeetCodeSync extension popup in Chrome.
+2. Click **Authenticate with GitHub**. You will be redirected to authorize the application.
+3. Once authenticated, select the GitHub repository where you want your submissions to be saved.
+4. Go to LeetCode, solve a problem, and submit it.
+5. LeetCodeSync will automatically detect a successful submission and push the code directly to your linked GitHub repository.
 
-1. Solve a problem on LeetCode and submit your solution.
-2. LeetSync will create a new file or update an existing one in your selected repository automatically.
-3. Go and check the submission on your github repository
+## Permissions
 
-## Support
+The extension requires the following permissions to function correctly:
+- `tabs`: To interact with the LeetCode tab and track submission status.
+- `storage` / `unlimitedStorage`: To save your GitHub access token and repository configuration locally.
+- `cookies`: Required to authenticate with the LeetCode API.
+- `webRequest`: To intercept and analyze LeetCode submission network requests.
+- `host_permissions` for `https://leetcode.com/*`: To inject the synchronization script.
 
-If you encounter any issues or have any suggestions for improving LeetSync, please feel free to [open an issue](https://github.com/3ba2ii/leet-sync/issues) on the GitHub repository.
+## Development and Testing
 
-## Contributing
+### Running Tests
+To run the automated test suite:
+```bash
+npm test
+```
 
-Contributions are welcome! If you want to contribute to the project, please follow the [contributing guidelines](CONTRIBUTING.md).
+### Type Checking
+Ensure there are no TypeScript errors:
+```bash
+npm run typecheck
+```
+
+### Linting
+Check for code formatting and stylistic errors:
+```bash
+npm run lint
+```
 
 ## License
 
-LeetSync is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).

@@ -1,4 +1,4 @@
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_REDIRECT_URI } from '../constants';
+import { GITHUB_CLIENT_ID, GITHUB_REDIRECT_URI, OAUTH_PROXY_URL } from '../constants';
 import { QuestionDifficulty } from '../types/Question';
 import { Submission } from '../types/Submission';
 
@@ -51,9 +51,9 @@ interface GithubUser {
 }
 export default class GithubHandler {
   base_url: string = 'https://api.github.com';
-  private client_secret: string | null = GITHUB_CLIENT_SECRET ?? '';
   private client_id: string | null = GITHUB_CLIENT_ID ?? '';
   private redirect_uri: string | null = GITHUB_REDIRECT_URI ?? '';
+  private oauth_proxy_url: string | null = OAUTH_PROXY_URL ?? '';
   private accessToken: string;
   private username: string;
   private repo: string;
@@ -140,12 +140,15 @@ export default class GithubHandler {
 
     if (token) return token;
 
-    const tokenUrl = 'https://github.com/login/oauth/access_token';
+    if (!this.oauth_proxy_url) {
+      throw new Error("OAUTH_PROXY_URL is not configured. A backend proxy is required to safely exchange the authorization code for an access token without exposing the client_secret in the browser.");
+    }
+
+    const tokenUrl = this.oauth_proxy_url;
     const body = {
       code,
       client_id: this.client_id,
       redirect_uri: this.redirect_uri,
-      client_secret: this.client_secret,
     };
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -290,7 +293,7 @@ export default class GithubHandler {
     //if it doesn't, create a new file with the content
     const msg = `Time: ${stats.runtimeDisplay} (${stats.runtimePercentile.toFixed(2)}%) | Memory: ${
       stats.memoryDisplay
-    } (${stats.memoryPercentile.toFixed(2)}%) - LeetSync`;
+    } (${stats.memoryPercentile.toFixed(2)}%) - LeetCodeSync`;
     await this.upload(path, `${problemName}${lang}`, code, msg);
   }
 
